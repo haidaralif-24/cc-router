@@ -1,0 +1,10 @@
+# Binaries
+claude-router
+*.exe
+*.out
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
