@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	Listen                 string     `json:"listen"`
+	RouterToken            string     `json:"router_token"`
 	DefaultCooldownSeconds int        `json:"default_cooldown_seconds"`
 	Providers              []Provider `json:"providers"`
 }

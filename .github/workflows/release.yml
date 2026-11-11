@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64, runs-on: ubuntu-latest }
+          - { goos: linux, goarch: arm64, runs-on: ubuntu-latest }
+          - { goos: darwin, goarch: amd64, runs-on: macos-latest }
+          - { goos: darwin, goarch: arm64, runs-on: macos-latest }
+          - { goos: windows, goarch: amd64, runs-on: windows-latest }
+          - { goos: windows, goarch: arm64, runs-on: windows-latest }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build -trimpath -ldflags="-s -w" -o claude-router .
+      - name: Package (unix)
+        if: matrix.goos != 'windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          tar -czf "dist/claude-router_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz" claude-router
+      - name: Package (windows)
+        if: matrix.goos == 'windows'
+        shell: pwsh
+        run: Compress-Archive -Path claude-router.exe -DestinationPath "dist/claude-router_${{ matrix.goos }}_${{ matrix.goarch }}.zip" -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claude-router_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

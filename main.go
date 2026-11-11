@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -15,12 +16,23 @@ type Router struct {
 }
 
 func main() {
-	cfg, err := LoadConfig("config.jsonc")
+	configPath := os.Getenv("CC_ROUTER_CONFIG")
+	if configPath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("Failed to determine user home directory: %v", err)
+		}
+		configPath = filepath.Join(home, ".cc-router", "config.json")
+	}
+	cfg, err := LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	routerToken := os.Getenv("ROUTER_TOKEN")
+	routerToken := cfg.RouterToken
+	if routerToken == "" {
+		routerToken = os.Getenv("ROUTER_TOKEN")
+	}
 	if routerToken == "" {
 		log.Fatal("ROUTER_TOKEN environment variable is required")
 	}
