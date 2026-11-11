@@ -25,7 +25,7 @@
     },
     {
       "name": "tokenharbor",
-      "base_url": "https://api.tokenharbor.com",
+      "base_url": "https://tokenharbor.ai",
       "auth_style": "x-api-key",
       "tier": 1,
       "override_model": "deepseek/deepseek-v4.1-flash",
