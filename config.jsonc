@@ -25,6 +25,7 @@
       "base_url": "https://api.tokenharbor.com",
       "auth_style": "x-api-key",
       "tier": 1,
+      "override_model": "deepseek/deepseek-v4.1-flash",
       "cooldown_seconds": 120,
       "keys": [
         "th-REPLACE_ME"
