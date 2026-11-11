@@ -1,13 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
+
+const defaultListenAddr = "127.0.0.1:8787"
 
 type Router struct {
 	pool   *Pool
@@ -29,6 +34,11 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	listenAddr, err := normalizeListenAddr(cfg.Listen)
+	if err != nil {
+		log.Fatalf("Invalid listen address: %v", err)
+	}
+
 	routerToken := cfg.RouterToken
 	if routerToken == "" {
 		routerToken = os.Getenv("ROUTER_TOKEN")
@@ -42,6 +52,7 @@ func main() {
 		token: routerToken,
 		client: &http.Client{
 			Transport: &http.Transport{
+				Proxy:                 http.ProxyFromEnvironment,
 				ResponseHeaderTimeout: 30 * time.Second,
 				IdleConnTimeout:       90 * time.Second,
 			},
@@ -54,10 +65,40 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	log.Printf("Starting router on %s", cfg.Listen)
-	if err := http.ListenAndServe(cfg.Listen, nil); err != nil {
+	log.Printf("Starting router on %s", listenAddr)
+	if err := http.ListenAndServe(listenAddr, nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// normalizeListenAddr enforces the local-only constraint from the spec. An
+// empty listen value defaults to loopback, an empty host (":8787") is bound to
+// loopback, and any explicit non-loopback host is rejected.
+func normalizeListenAddr(addr string) (string, error) {
+	addr = strings.TrimSpace(addr)
+	if addr == "" {
+		return defaultListenAddr, nil
+	}
+
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", fmt.Errorf("expected host:port, got %q: %w", addr, err)
+	}
+	if port == "" {
+		return "", fmt.Errorf("missing port in %q", addr)
+	}
+
+	if host == "" {
+		// ":8787" would bind every interface; force loopback instead.
+		host = "127.0.0.1"
+	} else if host != "localhost" {
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return "", fmt.Errorf("refusing to bind to non-loopback host %q: the router holds API keys and must stay localhost-only", host)
+		}
+	}
+
+	return net.JoinHostPort(host, port), nil
 }
 
 func (r *Router) handleMessages(w http.ResponseWriter, req *http.Request) {

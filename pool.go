@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -8,6 +9,7 @@ import (
 
 type KeyState struct {
 	Provider      *Provider
+	ID            string // safe log label, e.g. "openrouter[0]"
 	Key           string
 	Status        string // "active", "cooling", "disabled"
 	CooldownUntil time.Time
@@ -27,9 +29,10 @@ func NewPool(cfg *Config) *Pool {
 	}
 	for i := range cfg.Providers {
 		prov := &cfg.Providers[i]
-		for _, k := range prov.Keys {
+		for i, k := range prov.Keys {
 			p.keys = append(p.keys, &KeyState{
 				Provider: prov,
+				ID:       fmt.Sprintf("%s[%d]", prov.Name, i),
 				Key:      k,
 				Status:   "active",
 			})
@@ -61,6 +64,13 @@ func (p *Pool) Candidates() []*KeyState {
 		}
 		return out[i].LastUsed.Before(out[j].LastUsed)
 	})
+
+	// Reserve the head of the list while still holding the lock. Without this,
+	// concurrent requests would all observe the same LastUsed and pick the same
+	// key, defeating round-robin.
+	if len(out) > 0 {
+		out[0].LastUsed = now
+	}
 
 	return out
 }

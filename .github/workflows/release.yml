@@ -29,7 +29,11 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Build
-        run: go build -trimpath -ldflags="-s -w" -o claude-router .
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: go build -trimpath -ldflags="-s -w" -o "claude-router${{ matrix.goos == 'windows' && '.exe' || '' }}" .
       - name: Package (unix)
         if: matrix.goos != 'windows'
         shell: bash
