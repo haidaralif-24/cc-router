@@ -1,10 +1,13 @@
-{
+{ //This is the config file for claude-router. It is a JSONC file, which means it supports comments. You can edit this file to configure the router's behavior and providers.
   // Localhost binding (required for security)
   "listen": "127.0.0.1:8787",
-  
+
+  // Router bearer token for Claude Code auth
+  "router_token": "your-token-here",
+
   // Default cooldown if no Retry-After header is sent
   "default_cooldown_seconds": 60,
-  
+
   "providers": [
     {
       "name": "openrouter",
@@ -14,7 +17,7 @@
       "override_model": "recursive/flint-v1.0:free",
       "extra_headers": {
         "HTTP-Referer": "http://localhost:8787",
-        "X-Title": "My Claude Router"
+        "X-Title": "Claude Local Router"
       },
       "keys": [
         "sk-or-v1-REPLACE_ME"
