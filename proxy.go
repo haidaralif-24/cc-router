@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func (r *Router) tryUpstream(w http.ResponseWriter, in *http.Request, body []byte, ks *KeyState) bool {
+func (r *Router) tryUpstream(w http.ResponseWriter, in *http.Request, body []byte, ks *KeyState, path string) bool {
 	// 1. Handle Model Override
 	var payload map[string]interface{}
 	if err := json.Unmarshal(body, &payload); err == nil && ks.Provider.OverrideModel != "" {
@@ -19,7 +19,7 @@ func (r *Router) tryUpstream(w http.ResponseWriter, in *http.Request, body []byt
 	}
 
 	// 2. Build Request
-	upstreamURL := ks.Provider.BaseURL + "/v1/messages"
+	upstreamURL := ks.Provider.BaseURL + path
 	outReq, _ := http.NewRequestWithContext(in.Context(), "POST", upstreamURL, bytes.NewReader(body))
 
 	// 3. Headers

@@ -37,6 +37,7 @@ func main() {
 	}
 
 	http.HandleFunc("/v1/messages", r.handleMessages)
+	http.HandleFunc("/v1/messages/count_tokens", r.handleCountTokens)
 	http.HandleFunc("/api/hello", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -48,11 +49,7 @@ func main() {
 }
 
 func (r *Router) handleMessages(w http.ResponseWriter, req *http.Request) {
-	// Auth Check
-	authHeader := req.Header.Get("authorization")
-	apiKey := req.Header.Get("x-api-key")
-	if apiKey != r.token && authHeader != "Bearer "+r.token {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	if !r.authorized(w, req) {
 		return
 	}
 
@@ -63,10 +60,40 @@ func (r *Router) handleMessages(w http.ResponseWriter, req *http.Request) {
 	}
 
 	for _, ks := range r.pool.Candidates() {
-		if r.tryUpstream(w, req, body, ks) {
+		if r.tryUpstream(w, req, body, ks, "/v1/messages") {
 			return
 		}
 	}
 
 	http.Error(w, "All keys exhausted or cooling down", http.StatusTooManyRequests)
+}
+
+func (r *Router) handleCountTokens(w http.ResponseWriter, req *http.Request) {
+	if !r.authorized(w, req) {
+		return
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	for _, ks := range r.pool.Candidates() {
+		if r.tryUpstream(w, req, body, ks, "/v1/messages/count_tokens") {
+			return
+		}
+	}
+
+	http.Error(w, "All keys exhausted or cooling down", http.StatusTooManyRequests)
+}
+
+func (r *Router) authorized(w http.ResponseWriter, req *http.Request) bool {
+	authHeader := req.Header.Get("authorization")
+	apiKey := req.Header.Get("x-api-key")
+	if apiKey != r.token && authHeader != "Bearer "+r.token {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	return true
 }
